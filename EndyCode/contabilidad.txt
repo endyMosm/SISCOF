@@ -1,0 +1,170 @@
+Sub ingresarRegistroContable()
+
+'definicion de objetos a usar hojas y rangos de celdas
+Dim hojaOrigen As Excel.Worksheet, _
+datosAInsertar(5)  As Variant, _
+datosIngresados As Variant, _
+nroIngreso As Integer, _
+nroEgreso As Integer
+
+Const nombreHojaDestino = "ListasGenerales", _
+nombreHojaBaseDatos = "DataBaseContable"
+
+'indicar hojas a trabajar
+Set hojaOrigen = Worksheets("C")
+
+'si se quitan todos los campos la formula cambia por
+datosIngresados = hojaOrigen.Range("B11:H11").Value
+
+'validaciones
+If validacionDeCamposAIngresar(datosIngresados) = False Then
+Exit Sub
+End If
+
+'consulta de contadores
+nroIngreso = consultarValores(nombreHojaDestino, "D3")
+nroEgreso = consultarValores(nombreHojaDestino, "E3")
+
+'fecha con un formato especifico
+datosAInsertar(0) = Format(CDate(datosIngresados(1, 1)), "yyyy/mm/dd")
+'mapear tipo de registro I  E
+datosAInsertar(1) = datosIngresados(1, 2)
+
+'este condicional no tiene funcionalidad sí se elimina de la tabla el campo Nro i e
+If datosIngresados(1, 2) = "I" Then
+
+If datosIngresados(1, 3) = Empty Then
+nroIngreso = nroIngreso + 1
+datosAInsertar(2) = nroIngreso
+guardarCampoEspecifico nombreHojaDestino, "D3", nroIngreso
+Else
+datosAInsertar(2) = datosIngresados(1, 3)
+End If 'ingreso
+
+Else
+If datosIngresados(1, 4) = Empty Then
+nroEgreso = nroEgreso + 1
+datosAInsertar(2) = nroEgreso
+guardarCampoEspecifico nombreHojaDestino, "E3", nroEgreso
+Else
+datosAInsertar(2) = datosIngresados(1, 4)
+End If 'egreso
+
+End If
+
+'mapear dodigo transaccion
+datosAInsertar(3) = datosIngresados(1, 5)
+'mapear concepto
+datosAInsertar(4) = datosIngresados(1, 6)
+'mapear valor
+datosAInsertar(5) = datosIngresados(1, 7)
+
+'guardar la informacion
+guardarInformacion nombreHojaBaseDatos, datosIngresados, datosAInsertar
+
+'limpiar campos despues de ingresarlos
+limpiarRegistroContabilidadGeral
+End Sub
+Private Function validacionDeCamposAIngresar(ByVal datosIngresados As Variant) As Boolean
+'se descarta recorrido por vector, ya que no son datos continuos
+'definiciòn de mensajes
+Const mensajeVacio = "O_O No se permite que esté vació el campo: ", _
+ mensajeComplemento = "; por favor diligéncielo correctamente."
+
+If datosIngresados(1, 1) = Empty Then
+mensajeAMostrar mensajeVacio + "Fecha" + mensajeComplemento
+validacionDeCamposAIngresar = False
+Exit Function
+End If
+
+If IsDate(datosIngresados(1, 1)) = False Then
+mensajeAMostrar "por favor ingrese una fecha válida"
+validacionDeCamposAIngresar = False
+Exit Function
+End If
+
+If datosIngresados(1, 2) = Empty Then
+mensajeAMostrar mensajeVacio + "Tipo de registro (Ingreso-Egreso)" + mensajeComplemento
+validacionDeCamposAIngresar = False
+Exit Function
+End If
+
+If datosIngresados(1, 5) = Empty Then
+mensajeAMostrar mensajeVacio + "COD. TRANS" + mensajeComplemento
+validacionDeCamposAIngresar = False
+Exit Function
+End If
+
+If datosIngresados(1, 7) = Empty Then
+mensajeAMostrar mensajeVacio + "Valor" + mensajeComplemento 'manejarlo como un elemento visible e invisible
+validacionDeCamposAIngresar = False
+Exit Function
+End If
+
+validacionDeCamposAIngresar = True
+End Function
+
+Private Sub mensajeAMostrar(ByVal mensaje As String)
+MsgBox (mensaje)
+End Sub
+
+Private Function consultarValores(ByVal hoja As String, ByVal rangoCeldas As String) As Variant
+
+'variable hoja destino
+Dim hojaDestino As Excel.Worksheet
+
+Set hojaDestino = Worksheets(hoja)
+
+consultarValores = hojaDestino.Range(rangoCeldas).Value
+End Function
+
+Private Sub guardarInformacion(ByVal hoja As String, ByVal datosIngresados As Variant, ByVal datosAInsertar As Variant)
+If datosIngresados(1, 3) <> Empty Or datosIngresados(1, 4) <> Empty Then
+guardarActualizacionRegistro hoja, datosAInsertar(2), datosAInsertar
+Else
+guardarRegistroTesoreriaGeneral hoja, "A4:F4", datosAInsertar
+End If
+
+End Sub
+
+
+Private Sub guardarCampoEspecifico(ByVal hoja As String, ByVal celdaDestino As String, ByVal datosIngresados As Variant)
+'variable hoja destino
+Dim hojaDestino As Excel.Worksheet
+
+Set hojaDestino = Worksheets(hoja)
+
+hojaDestino.Range(celdaDestino) = datosIngresados
+End Sub
+
+Private Sub guardarRegistroTesoreriaGeneral(ByVal hoja As String, ByVal celdaDestino As String, ByVal datosIngresados As Variant)
+'variable hoja destino
+Dim hojaDestino As Excel.Worksheet
+
+Set hojaDestino = Worksheets(hoja)
+
+hojaDestino.Range(celdaDestino).EntireRow.Insert
+hojaDestino.Range(celdaDestino) = datosIngresados
+End Sub
+
+Private Sub guardarActualizacionRegistro(ByVal hoja As String, ByVal codigoABuscar As String, ByVal datosAInsertar As Variant)
+Dim hojaDestino As Excel.Worksheet, _
+linea As Integer
+
+Set hojaDestino = Worksheets(hoja)
+
+linea = hojaDestino.Range("C:C").Find(codigoABuscar, lookat:=xlWhole).Row
+hojaDestino.Range("A" & linea).Value = datosAInsertar(0)
+hojaDestino.Range("D" & linea).Value = datosAInsertar(3)
+hojaDestino.Range("E" & linea).Value = datosAInsertar(4)
+hojaDestino.Range("F" & linea).Value = datosAInsertar(5)
+
+End Sub
+
+Private Sub limpiarRegistroContabilidadGeral()
+'campos de fecha a cod.trans
+Worksheets("C").Range("B11:F11").Value = Empty
+'campo valor; no se limpia concepto, ya que tiene una formula y se tetearìa dejando de funcionar
+Worksheets("C").Range("H11").Value = Empty
+End Sub
+
